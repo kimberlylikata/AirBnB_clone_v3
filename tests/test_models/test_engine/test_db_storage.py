@@ -15,7 +15,7 @@ from models.review import Review
 from models.state import State
 from models.user import User
 import json
-import os
+from os import getenv
 import pep8
 import unittest
 DBStorage = db_storage.DBStorage
@@ -78,38 +78,64 @@ class TestFileStorage(unittest.TestCase):
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_all_no_class(self):
         """Test that all returns all rows when no class is passed"""
-        pass
 
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_new(self):
         """test that new adds an object to the database"""
-        pass
 
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_save(self):
         """Test that save properly saves objects to file.json"""
-        pass
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
-    def test_get(self):
-        """Test that retrieve objects from file.json"""
-        state = State(name='Nairobi')
-        models.storage.new(state)
-        models.storage.save()
 
-        state_obj = models.storage.get(State, state.id)
+@unittest.skipUnless(getenv('HBNB_TYPE_STORAGE') == "db", "testing DBStorage")
+class TestDBStorage(unittest.TestCase):
+    """Tests the DBStorage."""
 
-        self.assertEqual(state, state_obj)
+    def setUp(self) -> None:
+        """Set up method that runs before each test case."""
+        models.storage.drop_all_tables()
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
-    def test_count(self):
-        """Test that counts objects from file.json"""
-        objs_from_all = len(models.storage.all())
-        objs_from_count = models.storage.count()
+    def test_count_when_empty(self):
+        """Test that the `count` method returns zero when nothing exists."""
+        self.assertTrue(models.storage.count() == 0)
 
-        self.assertEqual(objs_from_all, objs_from_count)
+    def test_count_all_objects(self):
+        """Test that the `count` method returns the right number of objects."""
+        for i in range(1, 11):
+            state = State(name=f"State_{i}")
+            state.save()
+            City(name=f"City_{i}", state_id=state.id).save()
 
-        states_from_all = len(models.storage.all(State))
-        states_from_count = models.storage.count(State)
+        self.assertEqual(models.storage.count(), 20)
 
-        self.assertEqual(states_from_all, states_from_count)
+    def test_count_with_model_name(self):
+        """Test that the `count` method returns the right number of objects for
+        a particular class."""
+        State(name="Arizona").save()
+        State(name="California").save()
+
+        self.assertEqual(models.storage.count(State), 2)
+
+    def test_get_with_non_existent(self):
+        """Test that the `get` method returns None for non-existent objects."""
+        self.assertIsNone(models.storage.get(User, 'abcd-1234-test-5678'))
+
+    def test_get_with_class_only(self):
+        """Test that the `get` method operates correctly when only the class
+        argument is passed."""
+        self.assertIsNone(models.storage.get(User))
+
+    def test_get_with_valid_class(self):
+        """Test that the `get` method returns the right object."""
+        state = State(name="Greater Accra")
+        state.save()
+
+        # test for state instance
+        self.assertEqual(models.storage.get(
+            State, state.id), state)
+
+        city = City(name="Tema", state_id=state.id)
+        city.save()
+        self.assertEqual(models.storage.get(
+            City, city.id), city)

@@ -21,9 +21,13 @@ classes = {"Amenity": Amenity, "City": City,
 
 
 class DBStorage:
-    """interaacts with the MySQL database"""
-    __engine = None
-    __session = None
+    """
+    This class interacts with the MySQL database.
+
+    Attributes:
+        __engine: The database engine.
+        __session: The database session.
+    """
 
     def __init__(self):
         """Instantiate a DBStorage object"""
@@ -41,7 +45,15 @@ class DBStorage:
             Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """query on the current database session"""
+        """Query the current database session.
+
+        Args:
+            cls (optional): The class name to filter the query.
+                If not provided, returns all objects.
+
+        Returns:
+            dict: A dictionary with format {<class_name>.<id>: <object>}.
+        """
         new_dict = {}
         for clss in classes:
             if cls is None or cls is classes[clss] or cls is clss:
@@ -49,52 +61,72 @@ class DBStorage:
                 for obj in objs:
                     key = obj.__class__.__name__ + '.' + obj.id
                     new_dict[key] = obj
-        return (new_dict)
+        return new_dict
 
     def new(self, obj):
-        """add the object to the current database session"""
+        """Add the object to the current database session.
+
+        Args:
+            obj: The object to add.
+        """
         self.__session.add(obj)
 
     def save(self):
-        """commit all changes of the current database session"""
+        """Commit all changes of the current database session."""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """delete from the current database session obj if not None"""
+        """Delete the object from the current database session.
+
+        Args:
+            obj (optional): The object to delete.
+        """
         if obj is not None:
             self.__session.delete(obj)
 
     def reload(self):
-        """reloads data from the database"""
+        """Reload data from the database."""
         Base.metadata.create_all(self.__engine)
         sess_factory = sessionmaker(bind=self.__engine, expire_on_commit=False)
         Session = scoped_session(sess_factory)
         self.__session = Session
 
     def close(self):
-        """call remove() method on the private session attribute"""
+        """Call remove() method on the private session attribute."""
         self.__session.remove()
 
-    def get(self, cls, id):
+    def count(self, cls=None) -> int:
         """
-        Retrieves object of a class or all objects of that class
-        """
-        if id and isinstance(id, str):
-            if cls and (cls in classes.keys() or cls in classes.values()):
-                all_objs = self.all(cls)
-                for key, value in all_objs.items():
-                    if id == value.id and key.split('.')[1] == id:
-                        return value
-        return
+        Returns the number of objects in the storage.
 
-    def count(self, cls=None):
+        Args:
+            cls (optional): The class name of the objects to count.
+                If not provided, counts all objects.
+
+        Returns:
+            int: The number of objects in the storage.
         """
-        Returns the occurrence of a class or all classes
+        return len(self.all(cls))
+
+    def get(self, cls=None, cls_id=None) -> object:
         """
-        occurrence = 0
-        if cls:
-            if cls in classes.keys() or cls in classes.values():
-                occurrence = len(self.all(cls))
-        if not cls:
-            occurrence = len(self.all())
-        return occurrence
+        Returns the instance object that has the specified class name and id.
+
+        Args:
+            cls (optional): The class name of the object to retrieve.
+            cls_id(optional): The ID of the object.
+
+        Returns:
+            object: The instance object that matches class name and id.
+        """
+        if cls and cls_id:
+            return self.__session.query(cls).filter(cls.id == cls_id).first()
+        return None
+
+    def drop_all_tables(self):
+        """Drop all tables, useful when testing."""
+        self.__engine.execute('SET FOREIGN_KEY_CHECKS = 0')
+        self.__session.rollback()
+        Base.metadata.drop_all(self.__engine)
+        self.__engine.execute('SET FOREIGN_KEY_CHECKS = 1')
+        self.reload()

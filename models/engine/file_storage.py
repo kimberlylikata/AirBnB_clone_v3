@@ -17,11 +17,16 @@ classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
 
 
 class FileStorage:
-    """serializes instances to a JSON file & deserializes back to instances"""
+    """
+    This class serializes instances to a JSON file
 
-    # string - path to the JSON file
+    Attributes:
+        __file_path (str): The path to the JSON file.
+        __objects (dict): A dictionary that stores all objects
+        by <class name>.id.
+    """
+
     __file_path = "file.json"
-    # dictionary - empty but will store all objects by <class name>.id
     __objects = {}
 
     def all(self, cls=None):
@@ -69,28 +74,32 @@ class FileStorage:
         """call reload() method for deserializing the JSON file to objects"""
         self.reload()
 
-    def get(self, cls, id):
+    def count(self, cls=None) -> int:
         """
-        Retrieves object of a class or all objects of that class
-        """
-        if id and isinstance(id, str):
-            if cls and (cls in classes.keys() or cls in classes.values()):
-                all_objs = self.all(cls)
-                for key, value in all_objs.items():
-                    if id == value.id and key.split('.')[1] == id:
-                        return value
-        return
+        Returns the number of objects in the storage.
 
-    def count(self, cls=None):
+        Args:
+            cls (optional): The class name of the objects to count.
+                If not provided, counts all objects.
+
+        Returns:
+            int: The number of objects in the storage.
         """
-        Returns the occurrence of a class or all classes
+        return len(self.all(cls))
+
+    def get(self, cls=None, cls_id=None) -> object:
         """
-        occurrence = 0
-        if cls:
-            if cls in classes.keys() or cls in classes.values():
-                occurrence = len(self.all(cls))
-            else:
-                return occurrence
-        if not cls:
-            occurrence = len(self.all())
-        return occurrence
+        Returns the instance object that has the specified class name and id.
+
+        Args:
+            cls (optional): The class name of the object to retrieve.
+            cls_id(optional): The ID of the object
+
+        Returns:
+            int: The number of objects in the storage.
+        """
+        if None in [cls, cls_id]:
+            return None
+
+        key = f"{cls.__name__}.{cls_id}"
+        return self.__objects.get(key)
